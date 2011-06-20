@@ -1,0 +1,171 @@
+<html>
+<head>
+	<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<script type="text/javascript">
+		function drawcandle(ctx, x, y_s, y_e, y_t, y_l) {
+			var color = "red";
+			if (y_s < y_e)
+				color = "green";
+			ctx.beginPath();
+			ctx.strokeStyle=color;
+			ctx.moveTo(x, y_l);
+			ctx.lineTo(x, y_t);
+			ctx.stroke();
+			
+			ctx.fillStyle=color;
+			ctx.rect(x - 2, y_s, 4, y_e - y_s);
+			ctx.fill();
+		}
+		
+		function drawDashed(gx, x1, y1, x2, y2) {     
+		    var dashLen = 4;
+		    
+		    gx.beginPath();
+			gx.strokeStyle="gray";
+		    gx.moveTo(x1, y1);
+		    
+		    var dX = x2 - x1;
+		    var dY = y2 - y1;
+		    var dashes = Math.floor(Math.sqrt(dX * dX + dY * dY) / dashLen);
+		    var dashX = dX / dashes;
+		    var dashY = dY / dashes;
+		    
+		    var q = 0;
+		    while (q++ < dashes) {
+		     x1 += dashX;
+		     y1 += dashY;
+		     gx[q % 2 == 0 ? 'moveTo' : 'lineTo'](x1, y1);
+		    }
+		    gx[q % 2 == 0 ? 'moveTo' : 'lineTo'](x2, y2);
+		    
+		    gx.stroke();
+		    gx.closePath();
+		}
+		
+		function drawDashedAll(gx, x, y, width, height, wSep, hSep) {
+			var xSep = Math.floor(width / wSep);
+			var ySep = Math.floor(height / hSep);
+			for (var i = 1; i < wSep; i++) {
+				drawDashed(gx, x + i * xSep, y, x + i * xSep, y + height);
+			}
+			for (var i = 1; i < hSep; i++) {
+				drawDashed(gx, x, y + i * ySep, x + width, y + i * ySep);
+			}
+		}
+	</script>
+</head>
+
+
+<body style="margin: 0px;">
+<canvas id="myCanvas" width="600" height="400"></canvas>
+<script type="text/javascript">
+var c=document.getElementById("myCanvas");
+var ctx=c.getContext("2d");
+ctx.rect(50, 20, 500, 200);
+ctx.stroke();
+
+ctx.font = "12pt Arial";
+ctx.fillText("{{stock.code}}  {{stock.name}} -- 5分钟K线", 50, 18);
+
+var d_max = {{stock.max_price}};
+var d_floor = {{stock.min_price}};
+var m_sep = ((d_max - d_floor) / 8).toFixed(2);
+for (var i = 0; i <= 8; i++) {
+	ctx.fillText((d_max - i * m_sep).toFixed(2), 10, 25 + i * (200 / 8));
+}
+
+drawDashedAll(ctx, 50, 20, 500, 200, 5, 8);
+ctx.font = "10pt Arial";
+{% for d in stock.dates%}
+	{% if loop.index0 % 8 == 0 %}
+	ctx.fillText("{{d}}", 20 + {{ loop.index0 / 8 }} * (500 / 5), 236);
+	{% endif %}
+{% endfor  %}
+
+ctx.fillStyle="black";
+ctx.fillText("MA5", 55, 35);
+ctx.fillStyle="blue";
+ctx.fillText("MA10", 155, 35);
+ctx.fillStyle="purple";
+ctx.fillText("MA30", 255, 35);
+
+var d_s = {{stock.open_prices}};
+var d_e = {{stock.close_prices}};
+var d_t = {{stock.high_prices}};
+var d_f = {{stock.low_prices}};
+var l = d_s.length;
+//var x_sep = Math.floor((500 - 2 * (l + 1))  / l);
+var x_sep = Math.floor(500 / l);
+var y_sep = (d_max - d_floor) * 100 / 200;
+var x_start = 52;
+var y_start = 20;
+for (var i = 0; i < l; i++) {
+	var x = x_start + i * x_sep;
+	var y_s = y_start + Math.floor((d_max - d_s[i]) * 100 / y_sep);
+	var y_e = y_start + Math.floor((d_max - d_e[i]) * 100 / y_sep);
+	var y_t = y_start + Math.floor((d_max - d_t[i]) * 100 / y_sep);
+	var y_f = y_start + Math.floor((d_max - d_f[i]) * 100 / y_sep);
+	drawcandle(ctx, x, y_s, y_e, y_t, y_f);
+}
+var x_1 = 0;
+var y_1 = 0;
+var x_2 = 0;
+var y_2 = 0;
+{% for ma_av in stock.ma_5 %}
+    {% if loop.index0 == 0 %}
+    x_0 = x_start + {{ loop.index0 }} * x_sep;
+    y_0 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+    {% else %}
+    x_1 = x_start + {{ loop.index0 }} * x_sep;
+    y_1 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+			ctx.beginPath();
+			ctx.strokeStyle="black";
+			ctx.moveTo(x_0, y_0);
+			ctx.lineTo(x_1, y_1);
+			ctx.stroke();
+    x_0 = x_1;
+    y_0 = y_1;
+    {% endif %}
+{% endfor %}
+
+
+{% for ma_av in stock.ma_10 %}
+    {% if loop.index0 == 0 %}
+    x_0 = x_start + {{ loop.index0 }} * x_sep;
+    y_0 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+    {% else %}
+    x_1 = x_start + {{ loop.index0 }} * x_sep;
+    y_1 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+			ctx.beginPath();
+			ctx.strokeStyle="blue";
+			ctx.moveTo(x_0, y_0);
+			ctx.lineTo(x_1, y_1);
+			ctx.stroke();
+    x_0 = x_1;
+    y_0 = y_1;
+    {% endif %}
+{% endfor %}
+
+
+{% for ma_av in stock.ma_30 %}
+    {% if loop.index0 == 0 %}
+    x_0 = x_start + {{ loop.index0 }} * x_sep;
+    y_0 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+    {% else %}
+    x_1 = x_start + {{ loop.index0 }} * x_sep;
+    y_1 = y_start + Math.floor((d_max - {{ma_av}}) * 100 / y_sep);
+			ctx.beginPath();
+			ctx.strokeStyle="purple";
+			ctx.moveTo(x_0, y_0);
+			ctx.lineTo(x_1, y_1);
+			ctx.stroke();
+    x_0 = x_1;
+    y_0 = y_1;
+    {% endif %}
+{% endfor %}
+
+</script>
+
+
+</body>
+</html>

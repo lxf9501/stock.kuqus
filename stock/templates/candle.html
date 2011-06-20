@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+	<script type="text/javascript">
+		function drawcandle(ctx, x, y_s, y_e, y_t, y_l) {
+			var color = "red";
+			if (y_s < y_e)
+				color = "green";
+			ctx.beginPath();
+			ctx.strokeStyle=color;
+			ctx.moveTo(x, y_l);
+			ctx.lineTo(x, y_t);
+			ctx.stroke();
+			ctx.fillStyle=color;
+			ctx.rect(x - 2, y_s, 4, y_e - y_s);
+			ctx.fill();
+		}
+		
+		function drawDashed(gx, x1, y1, x2, y2) {     
+		    var dashLen = 4;
+		    gx.beginPath();
+			gx.strokeStyle="gray";
+		    gx.moveTo(x1, y1);
+		    var dX = x2 - x1;
+		    var dY = y2 - y1;
+		    var dashes = Math.floor(Math.sqrt(dX * dX + dY * dY) / dashLen);
+		    var dashX = dX / dashes;
+		    var dashY = dY / dashes;
+		    var q = 0;
+		    while (q++ < dashes) {
+			    x1 += dashX;
+			    y1 += dashY;
+			    gx[q % 2 == 0 ? 'moveTo' : 'lineTo'](x1, y1);
+		    }
+		    gx[q % 2 == 0 ? 'moveTo' : 'lineTo'](x2, y2);
+		    gx.stroke();
+		    gx.closePath();
+		}
+		
+		function drawDashedAll(gx, x, y, width, height, wSep, hSep) {
+			var xSep = Math.floor(width / wSep);
+			var ySep = Math.floor(height / hSep);
+			for (var i = 1; i < wSep; i++) {
+				drawDashed(gx, x + i * xSep, y, x + i * xSep, y + height);
+			}
+			for (var i = 1; i < hSep; i++) {
+				drawDashed(gx, x, y + i * ySep, x + width, y + i * ySep);
+			}
+		}
+		
+		function drawMa(ma_list, max, x_sep, y_sep, x_start, y_start, color) {
+			var len = ma_list.length;
+			var x_0 = 0;
+			var y_0 = 0;
+			var x_1 = 0;
+			var y_1 = 0;
+			for (var i = 0; i < len; i++) {
+				if (i == 0) {
+				    x_0 = x_start + x_sep;
+				    y_0 = y_start + Math.floor((max - ma_list[i]) * len / y_sep);
+				} else {
+				    x_1 = x_start + i * x_sep;
+				    y_1	 = y_start + Math.floor((max - ma_list[i]) * len / y_sep);
+					ctx.beginPath();
+					ctx.strokeStyle=color;
+					ctx.moveTo(x_0, y_0);
+					ctx.lineTo(x_1, y_1);
+					ctx.stroke();
+				    x_0 = x_1;
+				    y_0 = y_1;
+				}
+			}
+		}
+		
+		function draw(ctx, stock_code, stock_name, type, d_max, d_floor, d_day, d_s, d_e, d_t, d_f, d_ma_5, d_ma_10, d_ma_30) {
+			var height = 180;
+			ctx.fillStyle="black";
+			ctx.rect(50, 20, 500, height);
+			ctx.stroke();
+			
+			ctx.font = "12pt Arial";
+			ctx.fillText(stock_code + "  " + stock_name + " -- " + type, 50, 18);
+			
+			var m_sep = ((d_max - d_floor) / 8).toFixed(2);
+			for (var i = 0; i <= 8; i++) {
+				ctx.fillText((d_max - i * m_sep).toFixed(2), 10, 25 + i * (height / 8));
+			}
+			
+			drawDashedAll(ctx, 50, 20, 500, height, 5, 8);
+			ctx.font = "10pt Arial";
+			var l_day = d_day.length;
+			for (var i = 0; i < l_day; i++) {
+				ctx.fillText(d_day[i], 20 +  i * (500 / (l_day - 1)), 216);
+			}
+
+			ctx.fillStyle="black";
+			ctx.fillText("MA5", 55, 35);
+			ctx.fillStyle="blue";
+			ctx.fillText("MA10", 155, 35);
+			ctx.fillStyle="purple";
+			ctx.fillText("MA30", 255, 35);
+			
+			var l = d_s.length;
+			var x_sep = Math.floor(500 / l);
+			var y_sep = (d_max - d_floor) * 100 / height;
+			var x_start = 52;
+			var y_start = 20;
+			for (var i = 0; i < l; i++) {
+				var x = x_start + i * x_sep;
+				var y_s = y_start + Math.floor((d_max - d_s[i]) * 100 / y_sep);
+				var y_e = y_start + Math.floor((d_max - d_e[i]) * 100 / y_sep);
+				var y_t = y_start + Math.floor((d_max - d_t[i]) * 100 / y_sep);
+				var y_f = y_start + Math.floor((d_max - d_f[i]) * 100 / y_sep);
+				drawcandle(ctx, x, y_s, y_e, y_t, y_f);
+			}
+
+			drawMa(d_ma_5, d_max, x_sep, y_sep, x_start, y_start, "black");
+
+			drawMa(d_ma_10, d_max, x_sep, y_sep, x_start, y_start, "blue");
+
+			drawMa(d_ma_30, d_max, x_sep, y_sep, x_start, y_start, "purple");
+		}
+	</script>
+</head>
+
+<body style="margin: 0px;">
+<canvas id="myCanvas" width="1200" height="800"></canvas>
+<script type="text/javascript">
+	var c=document.getElementById("myCanvas");
+	var ctx=c.getContext("2d");
+	
+	var d_day = [{% for d in day_data.dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var d_s = [{% for price in day_data.open_prices %}{{price}},{% endfor %}];
+	var d_e = [{% for price in day_data.close_prices %}{{price}},{% endfor %}];
+	var d_t = [{% for price in day_data.high_prices %}{{price}},{% endfor %}];
+	var d_f = [{% for price in day_data.low_prices %}{{price}},{% endfor %}];
+	var d_ma_5 = [{% for ma_5 in day_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var d_ma_10 = [{% for ma_10 in day_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var d_ma_30 = [{% for ma_30 in day_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{day_data.code}}', '{{day_data.name}}', '日K线', {{day_data.max_price}}, {{day_data.min_price}}, d_day, d_s, d_e, d_t, d_f, d_ma_5, d_ma_10, d_ma_30);
+	
+	ctx.save()
+	ctx.translate(0, 220);
+	var week_day = [{% for d in week_data.start_dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var week_s = [{% for price in week_data.open_prices %}{{price}},{% endfor %}];
+	var week_e = [{% for price in week_data.close_prices %}{{price}},{% endfor %}];
+	var week_t = [{% for price in week_data.high_prices %}{{price}},{% endfor %}];
+	var week_f = [{% for price in week_data.low_prices %}{{price}},{% endfor %}];
+	var week_ma_5 = [{% for ma_5 in week_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var week_ma_10 = [{% for ma_10 in week_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var week_ma_30 = [{% for ma_30 in week_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{week_data.code}}', '{{week_data.name}}', '周K线', {{week_data.max_price}}, {{week_data.min_price}}, week_day, week_s, week_e, week_t, week_f, week_ma_5, week_ma_10, week_ma_30);
+	ctx.restore()
+	
+	ctx.save()
+	ctx.translate(0, 440);
+	var month_day = [{% for d in month_data.start_dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var month_s = [{% for price in month_data.open_prices %}{{price}},{% endfor %}];
+	var month_e = [{% for price in month_data.close_prices %}{{price}},{% endfor %}];
+	var month_t = [{% for price in month_data.high_prices %}{{price}},{% endfor %}];
+	var month_f = [{% for price in month_data.low_prices %}{{price}},{% endfor %}];
+	var month_ma_5 = [{% for ma_5 in month_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var month_ma_10 = [{% for ma_10 in month_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var month_ma_30 = [{% for ma_30 in month_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{month_data.code}}', '{{month_data.name}}', '月K线', {{month_data.max_price}}, {{month_data.min_price}}, month_day, month_s, month_e, month_t, month_f, month_ma_5, month_ma_10, month_ma_30);
+	ctx.restore()
+	
+    ctx.save();
+	ctx.translate(600, 0);
+	var min5_day = [{% for d in min5_data.dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var min5_s = [{% for price in min5_data.open_prices %}{{price}},{% endfor %}];
+	var min5_e = [{% for price in min5_data.close_prices %}{{price}},{% endfor %}];
+	var min5_t = [{% for price in min5_data.high_prices %}{{price}},{% endfor %}];
+	var min5_f = [{% for price in min5_data.low_prices %}{{price}},{% endfor %}];
+	var min5_ma_5 = [{% for ma_5 in min5_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var min5_ma_10 = [{% for ma_10 in min5_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var min5_ma_30 = [{% for ma_30 in min5_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{min5_data.code}}', '{{min5_data.name}}', '5分钟线', {{min5_data.max_price}}, {{min5_data.min_price}}, min5_day, min5_s, min5_e, min5_t, min5_f, min5_ma_5, min5_ma_10, min5_ma_30);
+	ctx.restore()
+	
+	ctx.save()
+	ctx.translate(600, 220);
+	var min30_day = [{% for d in min30_data.start_dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var min30_s = [{% for price in min30_data.open_prices %}{{price}},{% endfor %}];
+	var min30_e = [{% for price in min30_data.close_prices %}{{price}},{% endfor %}];
+	var min30_t = [{% for price in min30_data.high_prices %}{{price}},{% endfor %}];
+	var min30_f = [{% for price in min30_data.low_prices %}{{price}},{% endfor %}];
+	var min30_ma_5 = [{% for ma_5 in min30_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var min30_ma_10 = [{% for ma_10 in min30_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var min30_ma_30 = [{% for ma_30 in min30_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{min30_data.code}}', '{{min30_data.name}}', '30分钟K线', {{min30_data.max_price}}, {{min30_data.min_price}}, min30_day, min30_s, min30_e, min30_t, min30_f, min30_ma_5, min30_ma_10, min30_ma_30);
+	ctx.restore()
+	
+	ctx.save()
+	ctx.translate(600, 440);
+	var min60_day = [{% for d in min60_data.start_dates%}{% if loop.index0 % 20 == 0 %}'{{d}}',{% elif loop.last %}'{{d}}'{% endif %}{% endfor  %}];
+	var min60_s = [{% for price in min60_data.open_prices %}{{price}},{% endfor %}];
+	var min60_e = [{% for price in min60_data.close_prices %}{{price}},{% endfor %}];
+	var min60_t = [{% for price in min60_data.high_prices %}{{price}},{% endfor %}];
+	var min60_f = [{% for price in min60_data.low_prices %}{{price}},{% endfor %}];
+	var min60_ma_5 = [{% for ma_5 in min60_data.ma_5 %}{{ma_5}},{% endfor %}];
+	var min60_ma_10 = [{% for ma_10 in min60_data.ma_10 %}{{ma_10}},{% endfor %}];
+	var min60_ma_30 = [{% for ma_30 in min60_data.ma_30 %}{{ma_30}},{% endfor %}];
+	draw(ctx, '{{min60_data.code}}', '{{min60_data.name}}', '60分钟K线', {{min60_data.max_price}}, {{min60_data.min_price}}, min60_day, min60_s, min60_e, min60_t, min60_f, min60_ma_5, min60_ma_10, min60_ma_30);
+</script>
+</body>
+</html>
